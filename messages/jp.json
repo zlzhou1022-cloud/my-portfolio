@@ -66,7 +66,7 @@
   },
   "GuestbookPage": {
     "backHome": "ホームへ戻る",
-    "title": "ゲストブック",
+    "title": "コメント",
     "subtitle": "お気軽に一言、メッセージを残していただけると嬉しいです。",
     "form": {
       "title": "新規メッセージ",
@@ -81,7 +81,7 @@
     "list": {
       "title": "新着メッセージ",
       "error": "読み込みエラー：",
-      "empty": "まだメッセージがありません。最初の足跡を残しましょう！",
+      "empty": "まだメッセージがありません。最初のメッセージを残しましょう！",
       "replyBtn": "返信",
       "quotePrefix": "引用",
       "notFound": "元のメッセージは非表示または削除されました"
@@ -94,7 +94,7 @@
   "TravelsPage": {
     "backHome": "ホームへ戻る",
     "title": "写真と足跡",
-    "subtitle": "Fujifilm X-S20 が切り取る一瞬と永遠",
+    "subtitle": "Fujifilm X-S20 が記録した不滅の瞬間",
     "viewDetails": "詳細を見る"
   },
   "TripDetail": {
@@ -108,7 +108,7 @@
   },
   "Trips": {
     "tohoku-feb-2026": {
-      "title": "日本東北紀行：雪と祭典",
+      "title": "東北地方の二月：雪とお祭り",
       "photos": {
         "1": "青森県青森市、広田神社の手水舎",
         "2": "青森県青森市、A-FACTORY前の広場",

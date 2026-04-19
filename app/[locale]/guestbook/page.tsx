@@ -3,6 +3,22 @@ import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { getTranslations, getLocale } from "next-intl/server";
 import { GuestbookClient } from "./guestbook-client";
+import { RateLimitToast } from "@/components/rate-limit-toast";
+// 💡 1. 引入必要的方法和限流工具
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
+
+// 💡 2. 在组件外部初始化严格的 API 限流器 (每分钟3次)
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+});
+const apiLimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(3, "1 m"),
+});
 
 export default async function GuestbookPage({ searchParams }: { searchParams: Promise<{ p?: string }> }) {
   const { p } = await searchParams;
@@ -35,21 +51,30 @@ export default async function GuestbookPage({ searchParams }: { searchParams: Pr
   // Server Action：提交数据到 DB
   async function addPost(formData: FormData) {
     'use server'; 
+    
+    // 💡 3. 第一道关卡：精准的 Server Action 限流
+    const headersList = await headers();
+    const ip = headersList.get("x-forwarded-for") ?? "127.0.0.1";
+    const { success } = await apiLimit.limit(`ratelimit_api_${ip}`);
+
+    // 如果超限，触发 Next.js 内置重定向（完美兼容客户端路由，不会红屏！）
+    if (!success) {
+      redirect(`/${locale}/guestbook?error=ratelimit`);
+    }
+
+    // 验证通过，继续处理留言逻辑
     const author = formData.get('author') as string;
     const title = formData.get('title') as string | null;
     const content = formData.get('content') as string;
-    
-    // 获取隐藏的引用信息
     const reply_to_id = formData.get('reply_to_id') as string | null;
     const reply_to_author = formData.get('reply_to_author') as string | null;
     const reply_to_content = formData.get('reply_to_content') as string | null;
 
     if (!author || !content) return;
 
-    // 接收 Supabase 返回的 error 对象
     const { error: insertError } = await supabase.from('guestbook').insert([{ 
       author, 
-      title: reply_to_id ? null : title, // 如果是回复，强制标题为空
+      title: reply_to_id ? null : title,
       content, 
       is_visible: true,
       reply_to_id,
@@ -57,7 +82,6 @@ export default async function GuestbookPage({ searchParams }: { searchParams: Pr
       reply_to_content
     }]);
 
-    // 🛠️ 护城河：如果有报错，直接在运行 npm run dev 的终端里打印出来！
     if (insertError) {
       console.error("❌ 写入留言失败:", insertError.message, insertError.details);
       return; 
@@ -69,6 +93,8 @@ export default async function GuestbookPage({ searchParams }: { searchParams: Pr
   return (
     <div className="max-w-2xl mx-auto mt-8 animate-in slide-in-from-bottom-4 duration-700 mb-20">
       
+      <RateLimitToast />
+
       <div className="mb-8">
         <Link href="/" className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 transition-colors group">
           <svg className="w-4 h-4 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -83,7 +109,6 @@ export default async function GuestbookPage({ searchParams }: { searchParams: Pr
 
       {error && <p className="text-red-500 dark:text-red-400 mb-4">{t("list.error")} {error.message}</p>}
 
-      {/* 注意：去掉了 t={t} */}
       <GuestbookClient 
         posts={posts} 
         currentPage={currentPage}

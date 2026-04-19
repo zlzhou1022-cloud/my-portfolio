@@ -12,7 +12,7 @@ const projects: Project[] = [
     title: "个人旅游计划用网页app（九州版）",
     description: "一个专门为个人旅行设计的辅助工具，支持动态调整行程细节并实时记录旅行开销，解决旅途中繁琐的账目管理问题。",
     url: "https://zlzhou1022-cloud.github.io/travel/",
-    tags: ["React", "Cloud Storage", "Finance"]
+    tags: ["Static Web Page", "JavaScript", "CSS"]
   },
   // 💡 预留位：基于你之前的研究，这里以后可以放入你的 Python 股票分析工具
   /*

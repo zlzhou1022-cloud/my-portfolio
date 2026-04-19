@@ -30,7 +30,7 @@ const trips: Trip[] = [
       { src: getImageUrl("tohoku2026Feb/kamakurasaikishi.jpg"), desc: "雪屋祭俯瞰" },
       { src: getImageUrl("tohoku2026Feb/kamakurasaiyoru.jpg"), desc: "雪屋祭夜景" },
       { src: getImageUrl("tohoku2026Feb/moriokahachiman.jpg"), desc: "盛冈八幡宫" },
-      { src: getImageUrl("tohoku2026Feb/moriokreimen.jpg"), desc: "盛冈冷面" },
+      { src: getImageUrl("tohoku2026Feb/moriokareimen.jpg"), desc: "盛冈冷面" },
       { src: getImageUrl("tohoku2026Feb/wanko.jpg"), desc: "100碗挑战" },
     ]
   },

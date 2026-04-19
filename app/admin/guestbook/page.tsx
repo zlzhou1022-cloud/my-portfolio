@@ -1,8 +1,8 @@
-import { supabase } from "@/lib/supabase";
+// 💡 1. 修改导入：使用拥有最高权限的 supabaseAdmin
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { cookies } from "next/headers";
-// 💡 1. 引入 redirect 用于处理登录失败的跳转
 import { redirect } from "next/navigation"; 
 import { AdminThemeToggle } from "./admin-theme-toggle";
 import { AdminTableClient } from "./admin-table-client";
@@ -10,7 +10,6 @@ import { AdminTableClient } from "./admin-table-client";
 export const dynamic = 'force-dynamic';
 
 export default async function AdminGuestbookPage({ searchParams }: { searchParams: Promise<{ p?: string, error?: string }> }) {
-  // 解析参数，获取错误标识
   const { p, error: loginError } = await searchParams;
   
   const cookieStore = await cookies();
@@ -25,10 +24,8 @@ export default async function AdminGuestbookPage({ searchParams }: { searchParam
         httpOnly: true,
         maxAge: 60 * 60 * 24, 
       });
-      // 登录成功时，重定向到干净的后台 URL，清除错误参数
       redirect("/admin/guestbook");
     } else {
-      // 💡 2. 密码错误时，重定向并带上 error 参数
       redirect("/admin/guestbook?error=1");
     }
   }
@@ -51,7 +48,6 @@ export default async function AdminGuestbookPage({ searchParams }: { searchParam
           <h1 className="text-2xl font-bold mb-2 text-center text-slate-900 dark:text-slate-100">管理中枢</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 text-center mb-6">{`Zeli's Space`}</p>
           
-          {/* 💡 3. 捕捉 URL 里的错误参数，显示红色提示 */}
           {loginError === '1' && (
             <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-sm font-bold text-center rounded-xl border border-red-100 dark:border-red-800/50 animate-in shake">
               ❌ 密码错误，请重试
@@ -86,7 +82,8 @@ export default async function AdminGuestbookPage({ searchParams }: { searchParam
   const start = (currentPage - 1) * pageSize;
   const end = start + pageSize - 1;
 
-  const { data: posts, count, error } = await supabase
+  // 💡 2. 使用 supabaseAdmin 拉取数据！现在可以无视 RLS 看到所有隐藏数据了
+  const { data: posts, count, error } = await supabaseAdmin
     .from('guestbook')
     .select('*', { count: 'exact' })
     .order('created_at', { ascending: false })
@@ -94,19 +91,18 @@ export default async function AdminGuestbookPage({ searchParams }: { searchParam
 
   const totalPage = Math.ceil((count || 0) / pageSize);
 
-  // Server Action 1: 切换单个显示状态
+  // 💡 3. 下面所有的增删改操作，全部替换为了 supabaseAdmin
   async function toggleVisibilityAction(id: string, currentStatus: boolean) {
     'use server';
-    await supabase.from('guestbook').update({ is_visible: !currentStatus }).eq('id', id);
+    await supabaseAdmin.from('guestbook').update({ is_visible: !currentStatus }).eq('id', id);
     revalidatePath('/admin/guestbook');
     revalidatePath('/guestbook');
   }
 
-  // 💡 4. 新增 Server Action 3: 批量修改显示状态
   async function updateVisibilityBulkAction(ids: string[], is_visible: boolean) {
     'use server';
     if (!ids || ids.length === 0) return;
-    await supabase.from('guestbook').update({ is_visible }).in('id', ids);
+    await supabaseAdmin.from('guestbook').update({ is_visible }).in('id', ids);
     revalidatePath('/admin/guestbook');
     revalidatePath('/guestbook');
   }
@@ -115,9 +111,16 @@ export default async function AdminGuestbookPage({ searchParams }: { searchParam
   async function deleteBulkAction(ids: string[]) {
     'use server';
     if (!ids || ids.length === 0) return;
-    await supabase.from('guestbook').delete().in('id', ids);
+    
+    // 执行删除
+    await supabaseAdmin.from('guestbook').delete().in('id', ids);
+    
+    // 清理两边的缓存，让数据更新
     revalidatePath('/admin/guestbook');
     revalidatePath('/guestbook');
+
+    // 💡 修复：强制重定向回第一页（干净的 URL），防止停留在被删空的页码上
+    redirect('/admin/guestbook');
   }
 
   return (
@@ -131,6 +134,15 @@ export default async function AdminGuestbookPage({ searchParams }: { searchParam
           </div>
           <div className="flex items-center gap-3">
             <AdminThemeToggle />
+            
+            {/* 💡 新增：通往监控面板的快捷按钮 */}
+            <Link 
+              href="/admin/monitor" 
+              className="px-4 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-800/30 rounded-lg text-sm font-bold hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors shadow-sm"
+            >
+              🛡️ 监控大屏
+            </Link>
+
             <form action={logout}>
               <button type="submit" className="px-4 py-2 text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors cursor-pointer">
                 安全退出
@@ -150,7 +162,7 @@ export default async function AdminGuestbookPage({ searchParams }: { searchParam
           totalPage={totalPage}
           count={count}
           toggleVisibilityAction={toggleVisibilityAction}
-          updateVisibilityBulkAction={updateVisibilityBulkAction} // 传给客户端
+          updateVisibilityBulkAction={updateVisibilityBulkAction}
           deleteBulkAction={deleteBulkAction}
         />
 
