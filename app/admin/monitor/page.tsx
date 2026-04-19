@@ -124,7 +124,7 @@ export default async function MonitorDashboardPage() {
               <ul className="text-xs text-blue-600 dark:text-blue-400 space-y-2">
                 <li>• 边缘节点 (Edge) 限流已激活</li>
                 <li>• 留言接口限流: 3次/分钟</li>
-                <li>• 全局访问限流: 60次/分钟</li>
+                <li>• 全局访问限流: 600次/分钟</li>
               </ul>
             </div>
           </div>

@@ -10,10 +10,10 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
 
-// 全站普通页面防刷限制 (每分钟 60 次)
+// 全站普通页面防刷限制 (每分钟 600 次)
 const generalLimit = new Ratelimit({
   redis,
-  limiter: Ratelimit.slidingWindow(60, "1 m"),
+  limiter: Ratelimit.slidingWindow(600, "1 m"),
 });
 
 const intlMiddleware = createMiddleware(routing);
