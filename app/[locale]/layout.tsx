@@ -11,6 +11,10 @@ import {getMessages} from 'next-intl/server';
 import {routing} from '@/i18n/routing';
 import {notFound} from 'next/navigation';
 
+// 💡 1. 引入 Redis 和 聊天机器人组件
+import { Redis } from "@upstash/redis";
+import { ChatBot } from "@/components/chat-bot";
+
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -32,6 +36,15 @@ export default async function LocaleLayout({
   }
 
   const messages = await getMessages();
+
+  // 💡 2. 在服务端检查今日 AI 配额
+  const redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL!,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+  });
+  const today = new Date().toISOString().split('T')[0];
+  const quota = await redis.get<number>(`chat_quota:${today}`) ?? 0;
+  const isQuotaFull = quota >= 50;
 
   return (
     <html lang={locale} suppressHydrationWarning>
@@ -62,6 +75,9 @@ export default async function LocaleLayout({
             <main className="flex-1 max-w-4xl mx-auto px-6 py-12 w-full">
               {children}
             </main>
+
+            {/* 💡 3. 将聊天机器人挂载到全局，放在 Providers 内部以支持暗黑模式等 */}
+            <ChatBot isQuotaFull={isQuotaFull} />
 
           </NextIntlClientProvider>
         </ThemeProvider>

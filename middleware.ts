@@ -22,6 +22,11 @@ export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
 
+  // 💡 修复：如果是前端向后端的 API 请求，直接放行，绝对不要走多语言解析！
+  if (pathname.startsWith('/api')) {
+    return NextResponse.next();
+  }
+
   // 1. 放行逻辑不变
   if (pathname.startsWith('/_next') || pathname.startsWith('/admin') || pathname.includes('.')) {
     return intlMiddleware(request);
