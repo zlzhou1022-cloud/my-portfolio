@@ -25,6 +25,7 @@ export function ChatBot({ isQuotaFull }: { isQuotaFull: boolean }) {
   const [chatId, setChatId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [sessionBlocked, setSessionBlocked] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // 1. 初始化聊天与持久化
@@ -86,8 +87,14 @@ export function ChatBot({ isQuotaFull }: { isQuotaFull: boolean }) {
         localStorage.setItem("chat_history", JSON.stringify(fullHistory));
       } else {
         const errorText = await res.text();
-        const errMsg: Message = { role: "assistant", content: `(System: ${errorText})`, timestamp: new Date().toISOString() };
-        setMessages([...newMessages, errMsg]);
+        if (errorText === "session_quota_full") {
+          setSessionBlocked(true);
+          const errMsg: Message = { role: "assistant", content: "This session has reached its message limit. Please refresh the page to start a new session.", timestamp: new Date().toISOString() };
+          setMessages([...newMessages, errMsg]);
+        } else {
+          const errMsg: Message = { role: "assistant", content: `(System: ${errorText})`, timestamp: new Date().toISOString() };
+          setMessages([...newMessages, errMsg]);
+        }
       }
     } catch {
       const errMsg: Message = { role: "assistant", content: "Connection failed. Please try again later.", timestamp: new Date().toISOString() };
@@ -134,10 +141,11 @@ export function ChatBot({ isQuotaFull }: { isQuotaFull: boolean }) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSend()}
-              placeholder="Type a message..."
-              className="flex-1 bg-slate-50 dark:bg-slate-950 border-none rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+              placeholder={sessionBlocked ? "Session limit reached." : "Type a message..."}
+              disabled={sessionBlocked}
+              className="flex-1 bg-slate-50 dark:bg-slate-950 border-none rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
-            <button onClick={handleSend} className="bg-emerald-500 text-white p-2 rounded-xl cursor-pointer">🚀</button>
+            <button onClick={handleSend} disabled={sessionBlocked} className="bg-emerald-500 text-white p-2 rounded-xl cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">🚀</button>
           </div>
         </div>
       )}

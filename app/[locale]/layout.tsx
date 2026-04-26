@@ -37,14 +37,14 @@ export default async function LocaleLayout({
 
   const messages = await getMessages();
 
-  // 💡 2. 在服务端检查今日 AI 配额
+  // 💡 2. 在服务端检查今日全局配额（新建 session 数超过 50）
   const redis = new Redis({
     url: process.env.UPSTASH_REDIS_REST_URL!,
     token: process.env.UPSTASH_REDIS_REST_TOKEN!,
   });
   const today = new Date().toISOString().split('T')[0];
-  const quota = await redis.get<number>(`chat_quota:${today}`) ?? 0;
-  const isQuotaFull = quota >= 50;
+  const globalQuota = await redis.get<number>(`chat_new_sessions:${today}`) ?? 0;
+  const isQuotaFull = globalQuota >= 50;
 
   return (
     <html lang={locale} suppressHydrationWarning>

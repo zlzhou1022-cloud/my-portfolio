@@ -16,13 +16,21 @@ export async function POST(req: Request) {
     // 接收前端传来的完整聊天记录和唯一会话 ID
     const { messages, chatId } = await req.json();
 
-    // 1. 检查今日配额
+    // 1. 检查配额（两层）
     const today = new Date().toISOString().split('T')[0];
-    const quotaKey = `chat_quota:${today}`;
-    const currentQuota = await redis.get<number>(quotaKey) ?? 0;
 
-    if (currentQuota >= 50) {
-      return new NextResponse("今日配额已满", { status: 403 });
+    // 层1：全局配额 —— 当天 chat_logs 新建行数超过 50 时关闭所有人的入口
+    const globalQuotaKey = `chat_new_sessions:${today}`;
+    const globalQuota = await redis.get<number>(globalQuotaKey) ?? 0;
+    if (globalQuota >= 50) {
+      return new NextResponse("daily_quota_full", { status: 403 });
+    }
+
+    // 层2：session 配额 —— 单个 session 累计消息超过 5000 条时关闭该用户入口
+    const sessionQuotaKey = `chat_session_msgs:${chatId}`;
+    const sessionMsgCount = await redis.get<number>(sessionQuotaKey) ?? 0;
+    if (sessionMsgCount >= 5000) {
+      return new NextResponse("session_quota_full", { status: 403 });
     }
 
     // 2. 准备 AI 的系统提示词（人设）
@@ -54,8 +62,16 @@ export async function POST(req: Request) {
 - 访客用日文提问 → 用日文回复
 - 其他语言 → 用同样的语言回复
 
-## 回答范围
-你主要回答与本网站内容及作者 Zeli 相关的问题。同时也可以应对日常轻松的话题，例如问候、天气、兴趣爱好、旅行、摄影等闲聊内容。对于过于复杂或完全无关的话题（如专业法律、医疗建议等），请友好地说明你帮不上忙。`,
+## 回答範囲
+你主要回答与本网站内容及作者 Zeli 相关的问题。同时也可以应对日常轻松的话题，例如问候、天气、兴趣爱好、旅行、摄影等闲聊内容。对于过于复杂或完全无关的话题（如专业法律、医疗建议等），请友好地说明你帮不上忙。
+
+## 安全与隐私（重要）
+如果访客提出以下类型的问题或话题，请立即友好地岔开话题，引导回网站相关内容，绝对不要直接回答：
+- 涉及个人隐私或他人隐私的问题（如询问作者的私人信息、住址、电话等）
+- 涉及安全漏洞、黑客攻击、数据泄露等话题
+- 涉及暴力、歧视、仇恨言论等不当内容
+- 涉及违法活动的问题
+岔开话题时，请用轻松的语气说"这个话题我帮不上忙，我们聊点别的吧 ^_^"之类的话，然后主动提起网站的某个有趣内容。`,
     };
 
     // 3. 呼叫大模型 (Groq API)，发送前剥离 timestamp 等非标准字段
@@ -109,9 +125,14 @@ export async function POST(req: Request) {
       console.log(`✅ 会话 ${chatId?.slice(0,8)}... 已成功更新数据库快照!`);
     }
       
-    // 5. 更新配额：每次成功的对话都算1次
-    await redis.incr(quotaKey);
-    await redis.expire(quotaKey, 60 * 60 * 24);
+    // 5. 更新配额计数
+    // session 消息数：每次对话 +1，永不过期（session 本身就是持久的）
+    await redis.incr(sessionQuotaKey);
+    // 全局新建行数：仅在新 session 首次创建时 +1（通过判断 session 消息数是否为 0）
+    if (sessionMsgCount === 0) {
+      await redis.incr(globalQuotaKey);
+      await redis.expire(globalQuotaKey, 60 * 60 * 24);
+    }
 
     return NextResponse.json(aiMessage);
 
