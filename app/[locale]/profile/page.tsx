@@ -22,7 +22,7 @@ export default function ProfilePage() {
       <section className="border-b border-stone-200 dark:border-stone-800 pb-16">
         <div className="grid md:grid-cols-12 gap-12">
           <div className="md:col-span-4">
-            <div className="relative w-full aspect-[3/4] overflow-hidden border border-stone-200 dark:border-stone-800 bg-stone-200 dark:bg-stone-800">
+            <div className="relative w-48 h-64 md:w-full md:h-auto md:aspect-[3/4] mx-auto overflow-hidden border border-stone-200 dark:border-stone-800 bg-stone-200 dark:bg-stone-800">
               <Image src="https://xvwjtmycuaplxmtgwkok.supabase.co/storage/v1/object/public/avatar/avatar.jpg" alt="Zeli Zhou" fill className="object-cover transition-all duration-500" priority />
             </div>
           </div>
